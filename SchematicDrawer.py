@@ -30,11 +30,16 @@ class Drawer:
         self.current_shape = None
         self.drawing_type = "RECTANGLE"
         self.current_vertices = []
-
-
+        self.is_drawing = False
+        self.all_polygons = []
+        self.temp_shape = None
         self.root = self.createMainWindow()
         self.place_buttons(TOOLBAR_LAYOUT,self.toolbar_frame)
 
+        #Bindings for inputs
+        self.design.bind("<Motion>", self.mouseDrag)
+        self.design.bind('<Button-1>', self.mouseDown)
+        self.design.bind("<ButtonRelease-1>",  self.mouseUp)
         pass
 
     #Creates the main window
@@ -63,16 +68,23 @@ class Drawer:
     def mouseDown(self,event):
         if self.drawing_type != "":
             self.mouse_down_event = event
+            self.is_drawing = True
+            self.current_vertices = [0,0,0,0,0,0]
+            #Create temp shape for design guide
+            self.temp_shape = self.design.create_polygon(*self.current_vertices, outline='black', fill='', dash=(4, 2))
             pass
 
     def mouseUp(self,event):
         self.mouse_up_event = event
-        self.design.create_polygon(self.current_vertices, outline='black', fill='', dash=(4, 2))
+        self.is_drawing = False
+        rect = self.design.create_polygon(self.current_vertices, outline='black', fill='')
+        print(rect)
+        new_shape = Shape(self.drawing_type,self.convert_coordinates(self.current_vertices),rect,"None")
+        self.all_polygons.append(new_shape)
         pass    
     
     def mouseDrag(self,event):
-         if self.drawing_type != "":
-            print("BLEH")
+         if self.is_drawing == True:
             self.mouse_pos = (event.x,event.y)
             x0,y0 = (self.mouse_down_event.x,self.mouse_down_event.y)
             x1,y1 = self.mouse_pos
@@ -82,10 +94,11 @@ class Drawer:
                     shape_vertices = [x0,y0,x1,y0,x1,y1,x0,y1]
                 case "TRIANGLE":
                     shape_vertices = [x0,y0,x1,y1,x0,y1]
-            
-            self.current_vertices = shape_vertices
+
+
                     
-                    
+            self.design.coords(self.temp_shape,*shape_vertices)                    
+            self.current_vertices = shape_vertices  
 
                 
     def place_buttons(self,to_be_placed:dict,frame:Frame):
@@ -93,10 +106,25 @@ class Drawer:
         for index,key in enumerate(to_be_placed):
             print(key)
             to_be_placed[key] = (PhotoImage(file=IMAGE_FOLDER_PATH+to_be_placed[key]))
-            label = Button(frame,image=to_be_placed[key],command=None)
+            label = Button(frame,image=to_be_placed[key],command=lambda:self.toolbar_commands(key))
             label.grid(row=0,column=index)
             self.labels.append(label)
-            
+    
+    def convert_coordinates(self,inital_coords):
+        #Converts coordinates from each value being its own item to tuples of coords
+        #tkinter likes each value as its own item in a list
+        #PIL likes tuples of coordinates
+        tuple_coords = []
+        for i in range(len(inital_coords),2):
+            tuple_coords.append((inital_coords[i],inital_coords[i+1]))
+        return tuple_coords
+
+    def toolbar_commands(self,command):
+        print("called")
+        print(command)
+        if command == "RECTANGLE":
+            print("boos")
+
 
             
             
