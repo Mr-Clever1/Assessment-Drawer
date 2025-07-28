@@ -2,7 +2,10 @@
 #Schematic Drawer
 #James Burt
 from tkinter import *
+from tkinter import messagebox
 import math
+from PIL import Image,ImageDraw
+
 
 #Define program constants
 #How big the canvas will be in the program, has to maintain this ratio of 1:√2
@@ -58,11 +61,16 @@ class Drawer:
         self.all_polygons = []
         self.all_coordinates = []
 
+
         self.mouse_pos = (0,0)
         #Create the main window
         self.root = self.createMainWindow()
         self.place_buttons(TOOLBAR_LAYOUT,self.toolbar_frame)
         self.dimensions_bar_setup()
+
+        #Create configure window and then hide it away
+        self.configure_window = Toplevel(self.root)
+        self.configure_window.destroy()
 
         #Bindings for inputs
         self.design.bind("<Motion>", self.mouseDrag)
@@ -186,13 +194,56 @@ class Drawer:
             tuple_coords.append((inital_coords[i],inital_coords[i+1]))
         return tuple_coords
 
+    #Called whenever a button is pressed
     def button_commands(self,command):
         match(command):
+            #When configure button pressed
             case "CONFIGURE":
+                #Create secondary window at make it always at the top
+                self.configure_window = Toplevel(self.root)
+                self.configure_window.attributes('-topmost', True)
+
+                #Create entry box to take in the paper size value
+                self.paper_size_val  =  StringVar()
+                self.paper_size_entry = Entry(self.configure_window,textvariable=self.paper_size_val)
+                self.paper_size_entry.insert("0",f"{self.current_paper_size}")
+
+                #Call function whenever you click off of the entry box
+                self.paper_size_entry.bind("<FocusOut>", self.entry_edited)
+                self.paper_size_entry.grid(row=0,column=0)
+
+                self.configure_print_button = Button(self.configure_window,command=lambda:self.button_commands("PRINT"))
+                self.configure_print_button.grid(row=0,column=1)
                 pass
+            case "PRINT":
+                if self.configure_window != None:
+                    if self.configure_window.winfo_exists() == False:
+                        file = Image.new("RGB",CANVAS_SIZE,"white")
+                        draw = ImageDraw.Draw(file)
+                        for polygon in self.all_polygons:
+                            draw.polygon(polygon.vertices,outline="black")
+                    else:
+                        print("Open")
+                    pass
             case _:
                 self.drawing_type = command
+    def entry_edited(self,event):
+        try:         
+            if self.paper_size_val.get()=="":
+                print("empty")
+                raise ValueError
+            else:
+                size = int(self.paper_size_val.get())
+                if (size < 0 or size > len(AN_SIZES)-1):
+                    print("wrong")
 
+                    raise ValueError
+        except ValueError:            
+            messagebox.showerror("Invalid Paper Size", f"Please enter a value between 0 and {len(AN_SIZES)-1}")
+            self.paper_size_val.set(f"{self.current_paper_size}")
+            return None
+        self.current_paper_size = size            
+        
     def clamp(self,val,lower,upper):
         return round(max(lower,min(val,upper)),2)
 
