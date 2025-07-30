@@ -4,8 +4,8 @@
 from tkinter import *
 from tkinter import messagebox
 import math
-from PIL import Image,ImageDraw
-from MeasurementComponent import * 
+import RedrawerComponent 
+import MeasurementComponent 
 #Define program constants
 
 #Defines image names and folder that they're in
@@ -105,12 +105,12 @@ class Drawer:
         self.dimension_val = StringVar()
         self.dimensions_label = Label(self.dimensions_bar_frame,textvariable=self.dimension_val,bg="light grey")
         self.dimensions_label.pack(side=LEFT)
-        self.dimension_val.set(update_dimensions(self))
+        self.dimension_val.set(MeasurementComponent.update_dimensions(self))
 
     #Called when mouse down
     def mouseDown(self,event):
         if self.drawing_type != "":
-            self.mouse_down_pos = event.pos
+            self.mouse_down_pos = (event.x,event.y)
             self.is_drawing = True
             self.current_vertices = [0,0,0,0,0,0]
             #Create temp shape for design guide
@@ -123,8 +123,8 @@ class Drawer:
             self.mouse_up_event = event
             self.is_drawing = False
             rect = self.design.create_polygon(*self.current_vertices, outline='black', fill='')
-            print(rect)
             #Create shape info to store
+            print(self.convert_coordinates_format(self.current_vertices))
             new_shape = Shape(self.drawing_type,self.convert_coordinates_format(self.current_vertices),rect,"None")
             self.all_polygons.append(new_shape)
             pass    
@@ -149,12 +149,11 @@ class Drawer:
             self.design.coords(self.temp_shape,*shape_vertices)                    
             self.current_vertices = shape_vertices  
 
-        self.dimension_val.set(update_dimensions(self))
+        self.dimension_val.set(MeasurementComponent.update_dimensions(self))
     #Place buttons from dictionary        
     def place_buttons(self,to_be_placed:dict,frame:Frame):
         self.all_buttons = []
         for index,key in enumerate(to_be_placed):
-            print(key)
             to_be_placed[key] = (PhotoImage(file=IMAGE_FOLDER_PATH+to_be_placed[key]))
             self.all_buttons.append(Button(frame,image=to_be_placed[key],command=lambda k=key:self.button_commands(k)))
             self.all_buttons[-1].grid(row=0,column=index)
@@ -164,8 +163,9 @@ class Drawer:
         #tkinter likes each value as its own item in a list
         #PIL likes tuples of coordinates
         tuple_coords = []
-        for i in range(len(inital_coords),2):
+        for i in range(0,len(inital_coords),2):
             tuple_coords.append((inital_coords[i],inital_coords[i+1]))
+            print("t",tuple_coords)
         return tuple_coords
 
     #Called whenever a button is pressed
@@ -190,27 +190,17 @@ class Drawer:
                 self.configure_print_button.grid(row=0,column=1)
                 pass
             case "PRINT":
-                if self.configure_window != None:
-                    if self.configure_window.winfo_exists() == False:
-                        file = Image.new("RGB",self.CANVAS_SIZE,"white")
-                        draw = ImageDraw.Draw(file)
-                        for polygon in self.all_polygons:
-                            draw.polygon(polygon.vertices,outline="black")
-                    else:
-                        print("Open")
-                    pass
+                print("f",self.all_polygons[0].vertices)
+                RedrawerComponent.tkinter_to_PIL(self)
             case _:
                 self.drawing_type = command
     def entry_edited(self,event):
         try:         
             if self.paper_size_val.get()=="":
-                print("empty")
                 raise ValueError
             else:
                 size = int(self.paper_size_val.get())
                 if (size < 0 or size > len(AN_SIZES)-1):
-                    print("wrong")
-
                     raise ValueError
         except ValueError:            
             messagebox.showerror("Invalid Paper Size", f"Please enter a value between 0 and {len(AN_SIZES)-1}")
