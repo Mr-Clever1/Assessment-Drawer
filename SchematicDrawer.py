@@ -5,11 +5,8 @@ from tkinter import *
 from tkinter import messagebox
 import math
 from PIL import Image,ImageDraw
-
-
+from MeasurementComponent import * 
 #Define program constants
-#How big the canvas will be in the program, has to maintain this ratio of 1:√2
-CANVAS_SIZE = (437, 614)
 
 #Defines image names and folder that they're in
 IMAGE_FOLDER_PATH = r"Toolbar_Icons/"
@@ -61,8 +58,10 @@ class Drawer:
         self.all_polygons = []
         self.all_coordinates = []
 
-
+        #How big the canvas will be in the program, has to maintain this ratio of 1:√2
+        self.CANVAS_SIZE = (437, 614)
         self.mouse_pos = (0,0)
+        self.mouse_down_pos = (0,0)
         #Create the main window
         self.root = self.createMainWindow()
         self.place_buttons(TOOLBAR_LAYOUT,self.toolbar_frame)
@@ -97,7 +96,7 @@ class Drawer:
         self.design_frame.grid(row=2,column=0,sticky="news")
         
         #Establish the Tkinter canvas for drawing on
-        self.design = Canvas(self.design_frame,width=CANVAS_SIZE[0],height=CANVAS_SIZE[1],bg="white")
+        self.design = Canvas(self.design_frame,width=self.CANVAS_SIZE[0],height=self.CANVAS_SIZE[1],bg="white")
         self.design.grid(row=1,column=0)
         return root
     
@@ -106,13 +105,12 @@ class Drawer:
         self.dimension_val = StringVar()
         self.dimensions_label = Label(self.dimensions_bar_frame,textvariable=self.dimension_val,bg="light grey")
         self.dimensions_label.pack(side=LEFT)
-        self.update_dimensions()
-
+        self.dimension_val.set(update_dimensions(self))
 
     #Called when mouse down
     def mouseDown(self,event):
         if self.drawing_type != "":
-            self.mouse_down_event = event
+            self.mouse_down_pos = event.pos
             self.is_drawing = True
             self.current_vertices = [0,0,0,0,0,0]
             #Create temp shape for design guide
@@ -132,9 +130,9 @@ class Drawer:
             pass    
     #Called when mouse is moved over the canvas
     def mouseDrag(self,event):
-        self.mouse_pos = (self.clamp(event.x,0,CANVAS_SIZE[0]),self.clamp(event.y,0,CANVAS_SIZE[1]))
+        self.mouse_pos = (self.clamp(event.x,0,self.CANVAS_SIZE[0]),self.clamp(event.y,0,self.CANVAS_SIZE[1]))
         if self.is_drawing == True:
-            x0,y0 = (self.mouse_down_event.x,self.mouse_down_event.y)
+            x0,y0 = self.mouse_down_pos
             x1,y1 = self.mouse_pos
             shape_vertices = []
             #Set the vertices depending on selected shape
@@ -151,7 +149,7 @@ class Drawer:
             self.design.coords(self.temp_shape,*shape_vertices)                    
             self.current_vertices = shape_vertices  
 
-        self.update_dimensions()
+        self.dimension_val.set(update_dimensions(self))
     #Place buttons from dictionary        
     def place_buttons(self,to_be_placed:dict,frame:Frame):
         self.all_buttons = []
@@ -160,31 +158,7 @@ class Drawer:
             to_be_placed[key] = (PhotoImage(file=IMAGE_FOLDER_PATH+to_be_placed[key]))
             self.all_buttons.append(Button(frame,image=to_be_placed[key],command=lambda k=key:self.button_commands(k)))
             self.all_buttons[-1].grid(row=0,column=index)
-    def update_dimensions(self):
-        #Unrounded mouse pos
-        ur_x0,ury0 = self.convert_point_to_mm(self.mouse_pos)
-        x0,y0 = self.convert_point_to_mm(self.mouse_pos)
-        text = f"Position(mm): {(x0,y0)} "
-        if self.is_drawing == True:
-            #Unrounded mouse pos
-            start_mouse_pos = (self.mouse_down_event.x,self.mouse_down_event.y)
-            ur_x1,ury1 = self.convert_point_to_mm(start_mouse_pos)
-            x1,y1 = self.convert_point_to_mm(start_mouse_pos)
-            xy_scale = (ur_x0-ur_x1,ury0-ury1)
-            text = text+f"Scale(mm): {(round(x0-x1,2),round(y0-y1,2))} "
-            if self.drawing_type == "LINE":
-                text = text+f"Length(mm): {round(math.sqrt((xy_scale[0]**2)+(xy_scale[1]**2)),2)}"
-        self.dimension_val.set(text)
-    
-    def convert_point_to_mm(self,point):
-        mm_size = AN_SIZES[self.current_paper_size][1]
 
-        pxpmm_x = CANVAS_SIZE[0]/mm_size[0]
-        pxpmm_y = CANVAS_SIZE[1]/mm_size[1]
-        #Converts pixel coord to mm
-        mm_point = (point[0]/pxpmm_x,point[1]/pxpmm_y)
-        mm_point = (self.clamp(mm_point[0],0,mm_size[0]),self.clamp(mm_point[1],0,mm_size[1]))
-        return mm_point
     #Converts coordinates from each value being its own item to tuples of coords
     def convert_coordinates_format(self,inital_coords):
         #tkinter likes each value as its own item in a list
@@ -218,7 +192,7 @@ class Drawer:
             case "PRINT":
                 if self.configure_window != None:
                     if self.configure_window.winfo_exists() == False:
-                        file = Image.new("RGB",CANVAS_SIZE,"white")
+                        file = Image.new("RGB",self.CANVAS_SIZE,"white")
                         draw = ImageDraw.Draw(file)
                         for polygon in self.all_polygons:
                             draw.polygon(polygon.vertices,outline="black")
