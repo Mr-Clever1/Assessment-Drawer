@@ -38,8 +38,9 @@ class Drawer:
         self.current_vertices = []
         self.is_drawing = False
         self.temp_shape = None
-        self.current_paper_size = 5
-
+        self.current_paper_size = 4
+        self.real_scale = 100
+        self.CONFIG_SCALE = 100
         self.all_polygons = []
         self.all_coordinates = []
         #Paper Sizes, sizes in pixles then mm
@@ -176,14 +177,14 @@ class Drawer:
                 pass
             case "PRINT":
                 if self.configure_window != None and self.configure_window.winfo_exists() == False:
-                    RedrawerComponent.tkinter_to_PIL(self,self.all_polygons)
+                    RedrawerComponent.tkinter_to_PIL(self,self.all_polygons,self.CONFIG_SCALE/self.real_scale)
                 else:
                     #Creates a black line that is roughly 100mm across
-                    config_x,config_y = MeasurementComponent.convert_mm_to_point(self,(100,100))
+                    config_x,config_y = MeasurementComponent.convert_mm_to_point(self,(self.CONFIG_SCALE,self.CONFIG_SCALE))
                     config_offset = 40
                     config_coords = [(config_offset,config_offset),(config_x+config_offset,config_offset)]
                     config_shape = Shape("LINE",config_coords,0,None)
-                    RedrawerComponent.tkinter_to_PIL(self,[config_shape])
+                    RedrawerComponent.tkinter_to_PIL(self,[config_shape],1)
             case _:
                 self.drawing_type = command
     
