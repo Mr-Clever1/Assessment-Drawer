@@ -2,10 +2,9 @@
 #Schematic Drawer
 #James Burt
 from tkinter import *
-from tkinter import messagebox
-import math
 import RedrawerComponent 
 import MeasurementComponent 
+import ConfigurationComponent
 #Define program constants
 
 #Defines image names and folder that they're in
@@ -19,21 +18,7 @@ TOOLBAR_LAYOUT = {
     "LINE":"LIne.png"
 }
 
-#Paper Sizes, sizes in pixles then mm
-AN_SIZES = {
-    0: [(9933,14043),(841, 1189)],
-    1: [(7016,9933),(594, 841)],
-    2: [(4961,7016),(420, 594)],
-    3: [(3508,4961), (297, 420)],
-    4: [(2480,3508),(210, 297)],
-    5: [(1748,2480),(148, 210)],
-    6: [(1240,1748),(105, 148)],
-    7: [(874,1240),(74, 105)],
-    8: [(614,874),(52, 74)],
-    9: [(437,614), (37, 52)],
-    10:[(307,437),(26, 37)]
 
-}
 
 #Stores all of the information I require about each polygon on the canvas
 class Shape:
@@ -57,7 +42,21 @@ class Drawer:
 
         self.all_polygons = []
         self.all_coordinates = []
+        #Paper Sizes, sizes in pixles then mm
+        self.AN_SIZES = {
+            0: [(9933,14043),(841, 1189)],
+            1: [(7016,9933),(594, 841)],
+            2: [(4961,7016),(420, 594)],
+            3: [(3508,4961), (297, 420)],
+            4: [(2480,3508),(210, 297)],
+            5: [(1748,2480),(148, 210)],
+            6: [(1240,1748),(105, 148)],
+            7: [(874,1240),(74, 105)],
+            8: [(614,874),(52, 74)],
+            9: [(437,614), (37, 52)],
+            10:[(307,437),(26, 37)]
 
+        }
         #How big the canvas will be in the program, has to maintain this ratio of 1:√2
         self.CANVAS_SIZE = (437, 614)
         self.mouse_pos = (0,0)
@@ -173,40 +172,21 @@ class Drawer:
         match(command):
             #When configure button pressed
             case "CONFIGURE":
-                #Create secondary window at make it always at the top
-                self.configure_window = Toplevel(self.root)
-                self.configure_window.attributes('-topmost', True)
-
-                #Create entry box to take in the paper size value
-                self.paper_size_val  =  StringVar()
-                self.paper_size_entry = Entry(self.configure_window,textvariable=self.paper_size_val)
-                self.paper_size_entry.insert("0",f"{self.current_paper_size}")
-
-                #Call function whenever you click off of the entry box
-                self.paper_size_entry.bind("<FocusOut>", self.entry_edited)
-                self.paper_size_entry.grid(row=0,column=0)
-
-                self.configure_print_button = Button(self.configure_window,command=lambda:self.button_commands("PRINT"))
-                self.configure_print_button.grid(row=0,column=1)
+                ConfigurationComponent.create_configure_window(self)
                 pass
             case "PRINT":
-                print("f",self.all_polygons[0].vertices)
-                RedrawerComponent.tkinter_to_PIL(self)
+                if self.configure_window != None and self.configure_window.winfo_exists() == False:
+                    RedrawerComponent.tkinter_to_PIL(self,self.all_polygons)
+                else:
+                    #Creates a black line that is roughly 100mm across
+                    config_x,config_y = MeasurementComponent.convert_mm_to_point(self,(100,100))
+                    config_offset = 40
+                    config_coords = [(config_offset,config_offset),(config_x+config_offset,config_offset)]
+                    config_shape = Shape("LINE",config_coords,0,None)
+                    RedrawerComponent.tkinter_to_PIL(self,[config_shape])
             case _:
                 self.drawing_type = command
-    def entry_edited(self,event):
-        try:         
-            if self.paper_size_val.get()=="":
-                raise ValueError
-            else:
-                size = int(self.paper_size_val.get())
-                if (size < 0 or size > len(AN_SIZES)-1):
-                    raise ValueError
-        except ValueError:            
-            messagebox.showerror("Invalid Paper Size", f"Please enter a value between 0 and {len(AN_SIZES)-1}")
-            self.paper_size_val.set(f"{self.current_paper_size}")
-            return None
-        self.current_paper_size = size            
+    
         
     def clamp(self,val,lower,upper):
         return round(max(lower,min(val,upper)),2)

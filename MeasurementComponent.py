@@ -4,22 +4,6 @@
 #James Burt
 import math
 
-#Paper Sizes, sizes in pixles then mm
-AN_SIZES = {
-    0: [(9933,14043),(841, 1189)],
-    1: [(7016,9933),(594, 841)],
-    2: [(4961,7016),(420, 594)],
-    3: [(3508,4961), (297, 420)],
-    4: [(2480,3508),(210, 297)],
-    5: [(1748,2480),(148, 210)],
-    6: [(1240,1748),(105, 148)],
-    7: [(874,1240),(74, 105)],
-    8: [(614,874),(52, 74)],
-    9: [(437,614), (37, 52)],
-    10:[(307,437),(26, 37)]
-
-}
-
 def update_dimensions(self):
     self.canvas_size = self.CANVAS_SIZE
     #Unrounded mouse pos
@@ -38,7 +22,7 @@ def update_dimensions(self):
     return text
 
 def convert_point_to_mm(self,point):
-    mm_size = AN_SIZES[self.current_paper_size][1]
+    mm_size = self.AN_SIZES[self.current_paper_size][1]
 
     pxpmm_x = self.CANVAS_SIZE[0]/mm_size[0]
     pxpmm_y = self.CANVAS_SIZE[1]/mm_size[1]
@@ -47,5 +31,11 @@ def convert_point_to_mm(self,point):
     mm_point = (self.clamp(mm_point[0],0,mm_size[0]),self.clamp(mm_point[1],0,mm_size[1]))
     return mm_point
     
-def convert_mm_to_px(self,mm):
-    pass
+def convert_mm_to_point(self,mm_point):
+    mm_size = self.AN_SIZES[self.current_paper_size][1]
+    pxpmm_x = self.CANVAS_SIZE[0]/mm_size[0]
+    pxpmm_y = self.CANVAS_SIZE[1]/mm_size[1]
+    
+    pixel_point = (round(mm_point[0]*pxpmm_x),round(mm_point[1]*pxpmm_y))
+    return pixel_point
+    
