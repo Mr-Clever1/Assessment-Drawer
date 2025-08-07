@@ -114,8 +114,8 @@ class Drawer:
     #Called when mouse down
     def mouseDown(self,event):
         print("click")
+        self.mouse_down_pos = (event.x,event.y)
         if self.drawing_type != "" and self.drawing_type != "DELETE":
-            self.mouse_down_pos = (event.x,event.y)
             self.is_drawing = True
             self.current_vertices = [0,0,0,0,0,0]
             #Create temp shape for design guide
@@ -124,23 +124,43 @@ class Drawer:
         elif self.drawing_type == "DELETE":
 
             # self.find_bounding(event.x,event.y)
-            overlapping = self.design.find_overlapping(event.x, event.y,event.x, event.y)
-            for overlap_shape in overlapping:
-                bounding = self.design.coords(overlap_shape)
-                inside_check = self.design.find_overlapping(bounding[0], bounding[1],bounding[2], bounding[3])
-                for other_shapes in overlapping:
-                    if other_shapes in inside_check:
-                        pass
-                    else:
-                        print(f"Topmost rect is: {other_shapes}")
+            # topmost = None
+            # overlapping = self.design.find_overlapping(event.x, event.y,event.x, event.y)
+            # for overlap_shape in overlapping:
+            #     bounding = self.design.coords(overlap_shape)
+            #     inside_check = self.design.find_overlapping(bounding[0], bounding[1],bounding[2], bounding[3])
+            #     print(len(inside_check))
+            #     if len(inside_check)==1:
+            #         topmost = overlap_shape
+            #         break
+            x_intercepts = {}    
+            y_intercepts = {}    
 
-            # smallest = Shape("RECTANGLE",[0,0,self.CANVAS_SIZE[0],self.CANVAS_SIZE[1]],0,None,math.inf)
+            for x in range(0,self.CANVAS_SIZE[0]):
+                
+                point_intercepts = self.design.find_overlapping(x, self.mouse_down_pos[1], x, self.mouse_down_pos[1])
+                for intercept in point_intercepts:
+                    if intercept in x_intercepts:
+                        x_intercepts[intercept] = (x_intercepts[intercept][0],x)
+                    else: 
+                        x_intercepts[intercept] = (x,x)
+        
+            for y in range(0,self.CANVAS_SIZE[1]):
+            
+                point_intercepts = self.design.find_overlapping(self.mouse_down_pos[0], y, self.mouse_down_pos[0], y)
+                for intercept in point_intercepts:
+                    if intercept in y_intercepts:
+                        y_intercepts[intercept] = (y_intercepts[intercept][0],y)
+                    else: 
+                        y_intercepts[intercept] = (y,y)
+        
+            print(x_intercepts)
+            print(y_intercepts)
+
             # for shape in self.all_polygons:
-            #     if shape.rect in overlapping and shape.area < smallest.area:
-            #         smallest = shape
-            # if smallest.area != math.inf:
-            #     self.delete_shape(smallest)
-            #     print("Deleted")
+            #     if shape.rect == topmost:
+            #         self.delete_shape(shape)
+
             
             
 
