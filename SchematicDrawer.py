@@ -135,7 +135,6 @@ class Drawer:
             #         break
             x_intercepts = {}    
             y_intercepts = {}    
-
             for x in range(0,self.CANVAS_SIZE[0]):
                 
                 point_intercepts = self.design.find_overlapping(x, self.mouse_down_pos[1], x, self.mouse_down_pos[1])
@@ -154,8 +153,32 @@ class Drawer:
                     else: 
                         y_intercepts[intercept] = (y,y)
         
-            print(x_intercepts)
-            print(y_intercepts)
+            point_intercepts = self.design.find_overlapping(self.mouse_down_pos[0], self.mouse_down_pos[1], self.mouse_down_pos[0], self.mouse_down_pos[1])
+
+            furthest_edges = {}
+            for i in x_intercepts:
+                if i in y_intercepts and i in point_intercepts:
+                    edges =[]
+                    edges.append(abs(x_intercepts[i][0]-self.mouse_down_pos[0]))
+                    edges.append(abs(x_intercepts[i][1]-self.mouse_down_pos[0]))
+                    edges.append(abs(y_intercepts[i][0]-self.mouse_down_pos[1]))
+                    edges.append(abs(y_intercepts[i][1]-self.mouse_down_pos[1]))
+                    furthest_edges[i] = max(edges)
+                    pass
+            print(furthest_edges)
+            if len(furthest_edges)>0:
+                closest = None
+                distance = math.inf
+                for i in furthest_edges:
+                    if furthest_edges[i]<distance:
+                        closest = i
+                        distance = furthest_edges[i]
+
+                self.delete_shape(self.get_shape_from_rect(closest))
+
+
+
+            
 
             # for shape in self.all_polygons:
             #     if shape.rect == topmost:
@@ -163,7 +186,13 @@ class Drawer:
 
             
             
-
+    def get_shape_from_rect(self,rect):
+        print(rect)
+        for i in self.all_polygons:
+                if i.rect == rect:
+                    return i
+                
+        
     #Called when mouse released
     def mouseUp(self,event):
         if self.is_drawing == True:
@@ -253,6 +282,7 @@ class Drawer:
         
 
     def delete_shape(self,shape):
+        print(shape)
         self.all_polygons.remove(shape)
         self.design.delete(shape.rect)    
     def clamp(self,val,lower,upper):
