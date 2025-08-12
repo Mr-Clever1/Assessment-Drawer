@@ -104,90 +104,35 @@ class Drawer:
         self.design.grid(row=1,column=0)
         return root
     
-
+    #Establish information for dimension bar 
     def dimensions_bar_setup(self):
+        #Creates variable that will be the text displayed
         self.dimension_val = StringVar()
+        #Text widget
         self.dimensions_label = Label(self.dimensions_bar_frame,textvariable=self.dimension_val,bg="light grey")
+        #Put it in the frame(Uses pack because it's easy and there is only 1 item in this frame)
         self.dimensions_label.pack(side=LEFT)
         self.dimension_val.set(MeasurementComponent.update_dimensions(self))
 
     #Called when mouse down
     def mouseDown(self,event):
-        print("click")
+        #Gets the mouse location where the mouse goes down
         self.mouse_down_pos = (event.x,event.y)
+
+        #Check if i am trying to draw a shape
         if self.drawing_type != "" and self.drawing_type != "DELETE":
             self.is_drawing = True
             self.current_vertices = [0,0,0,0,0,0]
             #Create temp shape for design guide
             self.current_shape = self.design.create_polygon(*self.current_vertices, outline='black', fill='', dash=(4, 2))
             pass
+        #if i am deleting
         elif self.drawing_type == "DELETE":
 
-            # self.find_bounding(event.x,event.y)
-            # topmost = None
-            # overlapping = self.design.find_overlapping(event.x, event.y,event.x, event.y)
-            # for overlap_shape in overlapping:
-            #     bounding = self.design.coords(overlap_shape)
-            #     inside_check = self.design.find_overlapping(bounding[0], bounding[1],bounding[2], bounding[3])
-            #     print(len(inside_check))
-            #     if len(inside_check)==1:
-            #         topmost = overlap_shape
-            #         break
-            x_intercepts = {}    
-            y_intercepts = {}    
-            for x in range(0,self.CANVAS_SIZE[0]):
-                
-                point_intercepts = self.design.find_overlapping(x, self.mouse_down_pos[1], x, self.mouse_down_pos[1])
-                for intercept in point_intercepts:
-                    if intercept in x_intercepts:
-                        x_intercepts[intercept] = (x_intercepts[intercept][0],x)
-                    else: 
-                        x_intercepts[intercept] = (x,x)
-        
-            for y in range(0,self.CANVAS_SIZE[1]):
-            
-                point_intercepts = self.design.find_overlapping(self.mouse_down_pos[0], y, self.mouse_down_pos[0], y)
-                for intercept in point_intercepts:
-                    if intercept in y_intercepts:
-                        y_intercepts[intercept] = (y_intercepts[intercept][0],y)
-                    else: 
-                        y_intercepts[intercept] = (y,y)
-        
-            point_intercepts = self.design.find_overlapping(self.mouse_down_pos[0], self.mouse_down_pos[1], self.mouse_down_pos[0], self.mouse_down_pos[1])
+            self.click_delete()
 
-            furthest_edges = {}
-            for i in x_intercepts:
-                if i in y_intercepts and i in point_intercepts:
-                    edges =[]
-                    edges.append(abs(x_intercepts[i][0]-self.mouse_down_pos[0]))
-                    edges.append(abs(x_intercepts[i][1]-self.mouse_down_pos[0]))
-                    edges.append(abs(y_intercepts[i][0]-self.mouse_down_pos[1]))
-                    edges.append(abs(y_intercepts[i][1]-self.mouse_down_pos[1]))
-                    furthest_edges[i] = max(edges)
-                    pass
-            print(furthest_edges)
-            if len(furthest_edges)>0:
-                closest = None
-                distance = math.inf
-                for i in furthest_edges:
-                    if furthest_edges[i]<distance:
-                        closest = i
-                        distance = furthest_edges[i]
-
-                self.delete_shape(self.get_shape_from_rect(closest))
-
-
-
-            
-
-            # for shape in self.all_polygons:
-            #     if shape.rect == topmost:
-            #         self.delete_shape(shape)
-
-            
-            
+    #Pass rect of shape and returns shape object from self.all_polygons        
     def get_shape_from_rect(self,rect):
-        print(rect)
         for i in self.all_polygons:
                 if i.rect == rect:
                     return i
@@ -195,41 +140,51 @@ class Drawer:
         
     #Called when mouse released
     def mouseUp(self,event):
+        #Check if drawing
         if self.is_drawing == True:
+            #stop drawing and convert outline shape into final shape
             self.mouse_up_event = event
             self.is_drawing = False
             self.design.itemconfigure(self.current_shape, outline="black",dash=(), width=1)
             #Create shape info to store
-            print(self.convert_coordinates_format(self.current_vertices))
             new_shape = Shape(self.drawing_type,self.convert_coordinates_format(self.current_vertices),self.current_shape,"None",self.current_area)
             self.all_polygons.append(new_shape)
             pass    
     #Called when mouse is moved over the canvas
     def mouseDrag(self,event):
+        #Get mouse position, make sure it doesn't exceed the bounds of the canvas
         self.mouse_pos = (self.clamp(event.x,0,self.CANVAS_SIZE[0]),self.clamp(event.y,0,self.CANVAS_SIZE[1]))
+
+        #If is drawing
         if self.is_drawing == True:
+
+            #Rectangle from where you've dragged
             x0,y0 = self.mouse_down_pos
             x1,y1 = self.mouse_pos
             shape_vertices = []
             #Set the vertices depending on selected shape
             match(self.drawing_type):
                 case "RECTANGLE":
+                    #Set vertices as a rectangle configuration
                     shape_vertices = [x0,y0,x1,y0,x1,y1,x0,y1]
-                    self.current_area = abs(x1*y1)
                 case "TRIANGLE":
+                    #Set vertices in a triangle configuration
                     shape_vertices = [x0,y0,x1,y1,x0,y1]
-                    self.current_area = abs(0.5*x1*y1)
                 case "LINE":
+                    #Set vertices in a lin configuration
                     shape_vertices = [x0,y0,x1,y1]
-                case "ELIPSE":                    
-
+                case "ELIPSE":       
+                    #Calculate vertex positions              
                     shape_vertices = []
+                    #Get the center position and radius
                     center_x = (self.mouse_pos[0]+self.mouse_down_pos[0])/2
                     center_y = (self.mouse_pos[1]+self.mouse_down_pos[1])/2
                     radius_x = abs(self.mouse_pos[0]-self.mouse_down_pos[0])/2
                     radius_y = abs(self.mouse_pos[1]-self.mouse_down_pos[1])/2
-                    self.current_area = abs(radius_y*radius_x*math.pi)
+
+                    #Number of vertices to create around shape
                     num_points = 30
+                    #Create vertices
                     for i in range(num_points):
                         angle = 2 * math.pi * i / num_points
                         x = center_x + radius_x * math.cos(angle)
@@ -240,7 +195,7 @@ class Drawer:
             #Resize current shape to be new size
             self.design.coords(self.current_shape,*shape_vertices)                    
             self.current_vertices = shape_vertices  
-
+        #Update the dimensions display
         self.dimension_val.set(MeasurementComponent.update_dimensions(self))
     #Place buttons from dictionary        
     def place_buttons(self,to_be_placed:dict,frame:Frame):
@@ -257,7 +212,6 @@ class Drawer:
         tuple_coords = []
         for i in range(0,len(inital_coords),2):
             tuple_coords.append((inital_coords[i],inital_coords[i+1]))
-            print("t",tuple_coords)
         return tuple_coords
 
     #Called whenever a button is pressed
@@ -268,6 +222,7 @@ class Drawer:
                 ConfigurationComponent.create_configure_window(self)
                 pass
             case "PRINT":
+                #Open print window
                 if self.configure_window != None and self.configure_window.winfo_exists() == False:
                     RedrawerComponent.tkinter_to_PIL(self,self.all_polygons,self.CONFIG_SCALE/self.real_scale)
                 else:
@@ -276,20 +231,83 @@ class Drawer:
                     config_offset = 40
                     config_coords = [(config_offset,config_offset),(config_x+config_offset,config_offset)]
                     config_shape = Shape("LINE",config_coords,0,None)
+                    #Open print for line
                     RedrawerComponent.tkinter_to_PIL(self,[config_shape],1)
             case _:
+                #Set drawing type to clicked on shape
                 self.drawing_type = command
-        
+    #Delete shape when clicked on   
+    def click_delete(self):
+        #Create dictionary for positions where lines intersect shapes
+        x_intercepts = {}    
+        y_intercepts = {}    
+        #Scan length of screen at y point
+        for x in range(0,self.CANVAS_SIZE[0]):
+            #Find all shapes at point
+            point_intercepts = self.design.find_overlapping(x, self.mouse_down_pos[1], x, self.mouse_down_pos[1])
+            #See if already found point
+            for intercept in point_intercepts:
+                #Already discovered
+                if intercept in x_intercepts:
+                    #Update the shape edges
+                    x_intercepts[intercept] = (x_intercepts[intercept][0],x)
+                else: 
+                    #Just discovered, add to list
+                    x_intercepts[intercept] = (x,x)
+        #Scan height of screen at x point
+                    
+        for y in range(0,self.CANVAS_SIZE[1]):
+            #Find all shapes at point
+            point_intercepts = self.design.find_overlapping(self.mouse_down_pos[0], y, self.mouse_down_pos[0], y)
+            #See if already found point
+            for intercept in point_intercepts:
+                #Already discovered
+                if intercept in y_intercepts:
+                    #Update the shape edges
+                    y_intercepts[intercept] = (y_intercepts[intercept][0],y)
+                else: 
+                    #Just discovered, add to list
+                    y_intercepts[intercept] = (y,y)
+        #Get all the shapes that are directly under the mouse
+        point_intercepts = self.design.find_overlapping(self.mouse_down_pos[0], self.mouse_down_pos[1], self.mouse_down_pos[0], self.mouse_down_pos[1])
 
+        #Dictionary to store the furthest edges of all shapes from the mouse
+        furthest_edges = {}
+        for i in x_intercepts:
+            #If the shape in x_intercepts was also found in y_intercepts and I clicked on it
+            if i in y_intercepts and i in point_intercepts:
+                #Add all distance to all edges to list
+                edges =[]
+                edges.append(abs(x_intercepts[i][0]-self.mouse_down_pos[0]))
+                edges.append(abs(x_intercepts[i][1]-self.mouse_down_pos[0]))
+                edges.append(abs(y_intercepts[i][0]-self.mouse_down_pos[1]))
+                edges.append(abs(y_intercepts[i][1]-self.mouse_down_pos[1]))
+                #Find furthest edge
+                furthest_edges[i] = max(edges)
+                pass
+        #If clicked on shape
+        if len(furthest_edges)>0:
+            closest = None
+            distance = math.inf
+            for i in furthest_edges:
+                #Get nearest shape
+                if furthest_edges[i]<distance:
+                    closest = i
+                    distance = furthest_edges[i]
+            #Delete it
+            self.delete_shape(self.get_shape_from_rect(closest))
+
+    #Removes shape from self.all_polygons and removes from canvas        
     def delete_shape(self,shape):
-        print(shape)
         self.all_polygons.remove(shape)
         self.design.delete(shape.rect)    
+
+    #Returns val if val is in between bounds otherwise returns bound
     def clamp(self,val,lower,upper):
         return round(max(lower,min(val,upper)),2)
 
             
             
-
+#Runs and updates program
 window = Drawer()
 window.root.mainloop()
