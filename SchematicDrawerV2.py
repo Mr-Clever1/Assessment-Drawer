@@ -2,22 +2,28 @@
 #Schematic Drawer
 #James Burt
 from tkinter import *
+from tkinter import filedialog
+from tkinter import messagebox
 import RedrawerComponent 
 import MeasurementComponent 
 import ConfigurationComponent
 import math
+import json
 #Define program constants
 
 #Defines image names and folder that they're in
 IMAGE_FOLDER_PATH = r"Toolbar_Icons/"
 TOOLBAR_LAYOUT = {
     "CONFIGURE":"SETTINGS.png",
+    "SAVE":"SAVE.png",
+    "OPEN":"OPEN.png",
     "PRINT":"PRINT.png",
     "RECTANGLE":"RECTANGLE.png",
     "ELIPSE":"ELIPSE.png",
     "TRIANGLE":"TRIANGLE.png",
     "LINE":"LINE.png",
     "DELETE":"DELETE.png"
+    
 
 }
 
@@ -25,12 +31,11 @@ TOOLBAR_LAYOUT = {
 
 #Stores all of the information I require about each polygon on the canvas
 class Shape:
-    def __init__(self,type,vertices,rect,colour,area) -> None:
+    def __init__(self,type,vertices,rect,colour,) -> None:
         self.type = type
         self.vertices = vertices
         self.rect = rect
         self.colour = colour
-        self.area = area
         pass
 
 
@@ -46,7 +51,6 @@ class Drawer:
         self.CONFIG_SCALE = 100
         self.all_polygons = []
         self.all_coordinates = []
-        self.current_area = 0
         #Paper Sizes, sizes in pixles then mm
         self.AN_SIZES = {
             0: [(9933,14043),(841, 1189)],
@@ -63,9 +67,10 @@ class Drawer:
 
         }
         #How big the canvas will be in the program, has to maintain this ratio of 1:√2
-        self.CANVAS_SIZE = (437, 614)
-        self.local_aspect_ratio = self.CANVAS_SIZE[0]/self.CANVAS_SIZE[1]
-
+        self.canvas_size = (437, 614)
+        self.previous_canvas_size = (437, 614)
+        self.CANVAS_DOWN_SCALE = 0.9
+        self.WIDTH_HEIGHT_RATIO = self.canvas_size[0]/self.canvas_size[1]
         self.mouse_pos = (0,0)
         self.mouse_down_pos = (0,0)
         #Create the main window
@@ -81,6 +86,7 @@ class Drawer:
         self.design.bind("<Motion>", self.mouseDrag)
         self.design.bind('<Button-1>', self.mouseDown)
         self.design.bind("<ButtonRelease-1>",  self.mouseUp)
+        self.root.bind("<Configure>",  self.scale_design)
         pass
 
     #Creates the main window
@@ -88,6 +94,7 @@ class Drawer:
         
         #Establish window
         root = Tk()
+        root.geometry("717x1061")
         root.grid_rowconfigure(2,weight=1)
         root.grid_rowconfigure(3,weight=1)
         #Establish toolbar to store all of the tools useable
@@ -102,14 +109,12 @@ class Drawer:
         self.dimensions_bar_frame.grid(row=1,column=0,sticky="news")
         
         #Establish design frame where the user will be able to draw on the canvas
-        self.design_frame = Frame(root,bg="light grey")
+        self.design_frame = Frame(root,bg="light grey",width=self.canvas_size[0],height=self.canvas_size[1])
         self.design_frame.grid(row=2,column=0,sticky="news")
         
         #Establish the Tkinter canvas for drawing on
-        self.design = Canvas(self.design_frame,width=self.CANVAS_SIZE[0],height=self.CANVAS_SIZE[1],bg="white")
+        self.design = Canvas(self.design_frame,width=self.design_frame.winfo_width(),height=self.design_frame.winfo_height(),bg="white")
         self.design.pack(expand=True)
-
-        self.canvas_intial_size_ratio = (self.CANVAS_SIZE[0]/root.winfo_width(),self.CANVAS_SIZE[1]/root.winfo_height())
         return root
     
     #Establish information for dimension bar 
@@ -155,16 +160,17 @@ class Drawer:
             self.is_drawing = False
             self.design.itemconfigure(self.current_shape, outline="black",dash=(), width=1)
             #Create shape info to store
-            new_shape = Shape(self.drawing_type,self.convert_coordinates_format(self.current_vertices),self.current_shape,"None",self.current_area)
+            new_shape = Shape(self.drawing_type,self.convert_coordinates_format(self.current_vertices),self.current_shape,"None")
             self.all_polygons.append(new_shape)
             pass    
     #Called when mouse is moved over the canvas
     def mouseDrag(self,event):
         #Get mouse position, make sure it doesn't exceed the bounds of the canvas
-        self.mouse_pos = (self.clamp(event.x,0,self.CANVAS_SIZE[0]),self.clamp(event.y,0,self.CANVAS_SIZE[1]))
+        self.mouse_pos = (self.clamp(event.x,0,self.canvas_size[0]),self.clamp(event.y,0,self.canvas_size[1]))
 
         #If is drawing
         if self.is_drawing == True:
+
 
             #Rectangle from where you've dragged
             x0,y0 = self.mouse_down_pos
@@ -205,11 +211,39 @@ class Drawer:
             self.current_vertices = shape_vertices  
         #Update the dimensions display
         self.dimension_val.set(MeasurementComponent.update_dimensions(self))
+    def scale_design(self,event):
+        frame_height = self.design_frame.winfo_height()
+        frame_width = self.root.winfo_width()
 
-        new_size = (self.CANVAS_SIZE[0]*self.root.winfo_width()/self.canvas_intial_size_ratio[0],self.CANVAS_SIZE[1]*self.root.winfo_height()/self.canvas_intial_size_ratio[1])
-        print(self.CANVAS_SIZE,self.canvas_intial_size_ratio)
-        self.design.config(width=new_size[0],height=new_size[1])
+        #Check if the frame is wider than it is tall and scale canvas height with respect to width
+        if frame_width > frame_height*self.WIDTH_HEIGHT_RATIO:
+            self.design.config(width=frame_height*self.WIDTH_HEIGHT_RATIO*self.CANVAS_DOWN_SCALE,height=frame_height*self.CANVAS_DOWN_SCALE)   
 
+        #Check if the frame is taller than it is wide and scale canvas width with respect to height
+        if frame_width < frame_height*self.WIDTH_HEIGHT_RATIO:
+            self.design.config(width=frame_width*self.CANVAS_DOWN_SCALE,height=frame_width*self.CANVAS_DOWN_SCALE/self.WIDTH_HEIGHT_RATIO)
+        #Get new canvas size
+        self.canvas_size = (self.design.winfo_width(),self.design.winfo_height())
+        
+        #Check if canvas has changed size
+        if self.previous_canvas_size != self.canvas_size:
+            #Get how the ratio of change for x and y
+            width_scale = self.canvas_size[0]/self.previous_canvas_size[0]
+            height_scale = self.canvas_size[1]/self.previous_canvas_size[1]
+
+            #Scale all current drawings
+            self.design.scale("all",0,0,width_scale,height_scale)
+            #Update all_polygons list with new coordinates
+            for polygon in range(len(self.all_polygons)):
+                current = self.all_polygons[polygon]
+                vertices = current.vertices
+                new_vertices = []
+                for vertex in vertices:
+                    new_vertices.append((vertex[0]*width_scale,vertex[1]*height_scale))
+                self.all_polygons[polygon] = Shape(current.type,new_vertices,current.rect,current.colour)
+            #Update previous size to current size
+            self.previous_canvas_size = self.canvas_size
+        
     #Place buttons from dictionary        
     def place_buttons(self,to_be_placed:dict,frame:Frame):
         self.all_buttons = []
@@ -246,16 +280,54 @@ class Drawer:
                     config_shape = Shape("LINE",config_coords,0,None)
                     #Open print for line
                     RedrawerComponent.tkinter_to_PIL(self,[config_shape],1)
+            
+            case "OPEN":
+                self.open_json()
+                pass
+            case "SAVE":
+                self.save_as_json()
+        
+                pass
             case _:
                 #Set drawing type to clicked on shape
                 self.drawing_type = command
+
+    def open_json(self):
+        if len(self.all_polygons)>0:
+            confirmation = messagebox.askyesno(title="Confirmation",message="Are you sure you want to overwrite your current file?")
+            if confirmation != True:
+                return
+        print("Boomshakalaka")
+    
+    #Called when saving image
+    def save_as_json(self):
+
+        #Opens file explorer dialog to save a json file
+        path = filedialog.asksaveasfilename(
+            defaultextension=".json",
+            filetypes=[("JSON files", "*.json"), ("All files", "*.*")]
+        )
+        #If the user actually inputed a valid path
+        if path:
+
+            #Convert self.all_polygons from a list of objects to a list of lists of object information
+            all_polygons_list = []
+            for polygon in self.all_polygons:
+                all_polygons_list.append([polygon.type,polygon.rect,polygon.vertices,polygon.colour])
+
+            #Save as file
+            with open(path,'w') as file:
+                json.dump(all_polygons_list,file,indent=4)
+            
+            
+
     #Delete shape when clicked on   
     def click_delete(self):
         #Create dictionary for positions where lines intersect shapes
         x_intercepts = {}    
         y_intercepts = {}    
         #Scan length of screen at y point
-        for x in range(0,self.CANVAS_SIZE[0]):
+        for x in range(0,self.canvas_size[0]):
             #Find all shapes at point
             point_intercepts = self.design.find_overlapping(x, self.mouse_down_pos[1], x, self.mouse_down_pos[1])
             #See if already found point
@@ -269,7 +341,7 @@ class Drawer:
                     x_intercepts[intercept] = (x,x)
         #Scan height of screen at x point
                     
-        for y in range(0,self.CANVAS_SIZE[1]):
+        for y in range(0,self.canvas_size[1]):
             #Find all shapes at point
             point_intercepts = self.design.find_overlapping(self.mouse_down_pos[0], y, self.mouse_down_pos[0], y)
             #See if already found point

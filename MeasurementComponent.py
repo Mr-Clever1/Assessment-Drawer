@@ -30,8 +30,8 @@ def convert_point_to_mm(self,point):
     mm_size = self.AN_SIZES[self.current_paper_size][1]
 
     #See how many pixels are in each mm for the screen
-    pxpmm_x = self.CANVAS_SIZE[0]/mm_size[0]
-    pxpmm_y = self.CANVAS_SIZE[1]/mm_size[1]
+    pxpmm_x = self.canvas_size[0]/mm_size[0]
+    pxpmm_y = self.canvas_size[1]/mm_size[1]
     #Converts pixel coord to mm
     mm_point = (point[0]/pxpmm_x,point[1]/pxpmm_y)
     mm_point = (self.clamp(mm_point[0],0,mm_size[0]),self.clamp(mm_point[1],0,mm_size[1]))
@@ -42,8 +42,8 @@ def convert_mm_to_point(self,mm_point):
     #Gets the current paper size in mm
     mm_size = self.AN_SIZES[self.current_paper_size][1]
     #Get how many pixels there are per mm.
-    pxpmm_x = self.CANVAS_SIZE[0]/mm_size[0]
-    pxpmm_y = self.CANVAS_SIZE[1]/mm_size[1]
+    pxpmm_x = self.canvas_size[0]/mm_size[0]
+    pxpmm_y = self.canvas_size[1]/mm_size[1]
     
     #Convert to pixels
     pixel_point = (round(mm_point[0]*pxpmm_x),round(mm_point[1]*pxpmm_y))

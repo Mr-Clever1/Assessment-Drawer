@@ -5,7 +5,7 @@
 from PIL import Image,ImageDraw
 
 def tkinter_to_PIL(self,shapes,scale):
-    file = Image.new("RGB",self.CANVAS_SIZE,"white")
+    file = Image.new("RGB",self.canvas_size,"white")
     draw = ImageDraw.Draw(file)
     for polygon in shapes:
         for index,vertex in enumerate(polygon.vertices):
