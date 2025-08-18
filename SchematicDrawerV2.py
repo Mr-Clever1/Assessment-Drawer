@@ -51,6 +51,7 @@ class Drawer:
         self.CONFIG_SCALE = 100
         self.all_polygons = []
         self.all_coordinates = []
+        self.snap_range = 5
         #Paper Sizes, sizes in pixles then mm
         self.AN_SIZES = {
             0: [(9933,14043),(841, 1189)],
@@ -130,7 +131,7 @@ class Drawer:
     #Called when mouse down
     def mouseDown(self,event):
         #Gets the mouse location where the mouse goes down
-        self.mouse_down_pos = (event.x,event.y)
+        self.mouse_down_pos = self.find_local_point(event.x,event.y)
 
         #Check if i am trying to draw a shape
         if self.drawing_type != "" and self.drawing_type != "DELETE":
@@ -167,7 +168,7 @@ class Drawer:
     def mouseDrag(self,event):
         #Get mouse position, make sure it doesn't exceed the bounds of the canvas
         self.mouse_pos = (self.clamp(event.x,0,self.canvas_size[0]),self.clamp(event.y,0,self.canvas_size[1]))
-
+        self.mouse_pos = self.find_local_point(self.mouse_pos[0],self.mouse_pos[1])
         #If is drawing
         if self.is_drawing == True:
 
@@ -175,36 +176,8 @@ class Drawer:
             #Rectangle from where you've dragged
             x0,y0 = self.mouse_down_pos
             x1,y1 = self.mouse_pos
-            shape_vertices = []
-            #Set the vertices depending on selected shape
-            match(self.drawing_type):
-                case "RECTANGLE":
-                    #Set vertices as a rectangle configuration
-                    shape_vertices = [x0,y0,x1,y0,x1,y1,x0,y1]
-                case "TRIANGLE":
-                    #Set vertices in a triangle configuration
-                    shape_vertices = [x0,y0,x1,y1,x0,y1]
-                case "LINE":
-                    #Set vertices in a lin configuration
-                    shape_vertices = [x0,y0,x1,y1]
-                case "ELIPSE":       
-                    #Calculate vertex positions              
-                    shape_vertices = []
-                    #Get the center position and radius
-                    center_x = (self.mouse_pos[0]+self.mouse_down_pos[0])/2
-                    center_y = (self.mouse_pos[1]+self.mouse_down_pos[1])/2
-                    radius_x = abs(self.mouse_pos[0]-self.mouse_down_pos[0])/2
-                    radius_y = abs(self.mouse_pos[1]-self.mouse_down_pos[1])/2
-
-                    #Number of vertices to create around shape
-                    num_points = 30
-                    #Create vertices
-                    for i in range(num_points):
-                        angle = 2 * math.pi * i / num_points
-                        x = center_x + radius_x * math.cos(angle)
-                        y = center_y + radius_y * math.sin(angle)
-                        shape_vertices.append(x)
-                        shape_vertices.append(y)
+            shape_vertices = self.get_shape_vertices(self.drawing_type,x0,y0,x1,y1)
+            
 
             #Resize current shape to be new size
             self.design.coords(self.current_shape,*shape_vertices)                    
@@ -280,25 +253,56 @@ class Drawer:
                     config_shape = Shape("LINE",config_coords,0,None)
                     #Open print for line
                     RedrawerComponent.tkinter_to_PIL(self,[config_shape],1)
-            
+            #called when trying to open a file
             case "OPEN":
                 self.open_json()
                 pass
+            #Called when saving a file
             case "SAVE":
                 self.save_as_json()
-        
-                pass
-            case _:
-                #Set drawing type to clicked on shape
-                self.drawing_type = command
 
+            #Set drawing type to clicked on shape
+            case _:
+                self.drawing_type = command
+    #Called when opening a file
     def open_json(self):
+
+        #Checks if the user has drawn anything currently
         if len(self.all_polygons)>0:
-            confirmation = messagebox.askyesno(title="Confirmation",message="Are you sure you want to overwrite your current file?")
+            #Asks if they still want to open as it will reset their current drawing
+            confirmation = messagebox.askyesno(title="Confirmation",message="Are you sure you want to exit without saving?")
             if confirmation != True:
                 return
-        print("Boomshakalaka")
-    
+
+        #Opens file explorer dialog to save a json file
+        path = filedialog.askopenfilename(
+            defaultextension=".json",
+            filetypes=[("JSON files", "*.json"), ("All files", "*.*")]
+        )
+
+        #If there has been a path selected
+        if path:
+            #Wipe canvas
+            self.design.delete("all")
+            self.all_polygons.clear()
+            
+            #Open file
+            with open(path,'r') as file:
+                data = json.load(file)
+
+            #Run through each polygon in the file
+            for polygon in data:
+                #Convert from tuple to a flat list
+                tkinter_vertex_list = []
+                for vertex in polygon[2]:
+                    tkinter_vertex_list.extend(vertex)
+
+                #Draw all the shapes and add them to the all_polygons list
+                new_rect = self.design.create_polygon(*tkinter_vertex_list, outline='black', fill='', dash=())
+                new_shape = Shape(polygon[0],polygon[2],new_rect,polygon[3])
+                self.all_polygons.append(new_shape)
+
+
     #Called when saving image
     def save_as_json(self):
 
@@ -319,8 +323,51 @@ class Drawer:
             with open(path,'w') as file:
                 json.dump(all_polygons_list,file,indent=4)
             
-            
+    def find_local_point(self,x0,y0):
+        all_vertex = []
+        for polygon in self.all_polygons:
+            for vertex in polygon.vertices:
+                all_vertex.append(vertex)   
+        closest_point = math.inf
+        snap_point = (x0,y0)
+        for vertex in all_vertex:
+            distance = math.sqrt((x0-vertex[0])**2+(y0-vertex[1])**2)
+            if distance < closest_point and distance < self.snap_range:
+                snap_point = vertex
+        return snap_point
+             
+    def get_shape_vertices(self,polygon_type,x0,y0,x1,y1):
+        shape_vertices = []
+        #Set the vertices depending on selected shape
+        match(polygon_type):
+            case "RECTANGLE":
+                #Set vertices as a rectangle configuration
+                shape_vertices = [x0,y0,x1,y0,x1,y1,x0,y1]
+            case "TRIANGLE":
+                #Set vertices in a triangle configuration
+                shape_vertices = [x0,y0,x1,y1,x0,y1]
+            case "LINE":
+                #Set vertices in a lin configuration
+                shape_vertices = [x0,y0,x1,y1]
+            case "ELIPSE":       
+                #Calculate vertex positions              
+                shape_vertices = []
+                #Get the center position and radius
+                center_x = (self.mouse_pos[0]+self.mouse_down_pos[0])/2
+                center_y = (self.mouse_pos[1]+self.mouse_down_pos[1])/2
+                radius_x = abs(self.mouse_pos[0]-self.mouse_down_pos[0])/2
+                radius_y = abs(self.mouse_pos[1]-self.mouse_down_pos[1])/2
 
+                #Number of vertices to create around shape
+                num_points = 30
+                #Create vertices
+                for i in range(num_points):
+                    angle = 2 * math.pi * i / num_points
+                    x = center_x + radius_x * math.cos(angle)
+                    y = center_y + radius_y * math.sin(angle)
+                    shape_vertices.append(x)
+                    shape_vertices.append(y)
+        return shape_vertices
     #Delete shape when clicked on   
     def click_delete(self):
         #Create dictionary for positions where lines intersect shapes
