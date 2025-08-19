@@ -52,6 +52,7 @@ class Drawer:
         self.all_polygons = []
         self.all_coordinates = []
         self.snap_range = 5
+        self.snapping = False
         #Paper Sizes, sizes in pixles then mm
         self.AN_SIZES = {
             0: [(9933,14043),(841, 1189)],
@@ -88,8 +89,12 @@ class Drawer:
         self.design.bind('<Button-1>', self.mouseDown)
         self.design.bind("<ButtonRelease-1>",  self.mouseUp)
         self.root.bind("<Configure>",  self.scale_design)
+        self.root.bind("<space>", self.toggle_snapping)
+        self.root.bind("<Control-z>", self.delete_shape)
         pass
-
+    def toggle_snapping(self,event):
+        self.snapping = not self.snapping
+    
     #Creates the main window
     def createMainWindow(self):
         
@@ -302,7 +307,6 @@ class Drawer:
                 new_shape = Shape(polygon[0],polygon[2],new_rect,polygon[3])
                 self.all_polygons.append(new_shape)
 
-
     #Called when saving image
     def save_as_json(self):
 
@@ -324,16 +328,22 @@ class Drawer:
                 json.dump(all_polygons_list,file,indent=4)
             
     def find_local_point(self,x0,y0):
+        snap_point = [x0,y0]
         all_vertex = []
-        for polygon in self.all_polygons:
-            for vertex in polygon.vertices:
-                all_vertex.append(vertex)   
-        closest_point = math.inf
-        snap_point = (x0,y0)
-        for vertex in all_vertex:
-            distance = math.sqrt((x0-vertex[0])**2+(y0-vertex[1])**2)
-            if distance < closest_point and distance < self.snap_range:
-                snap_point = vertex
+        if self.snapping == True:
+            for polygon in self.all_polygons:
+                for vertex in polygon.vertices:
+                    all_vertex.append(vertex)   
+            closest_dist = [math.inf,math.inf]
+            for vertex in all_vertex:
+                x_dist  = abs(x0-vertex[0])
+                y_dist  = abs(y0-vertex[1])
+                if x_dist < self.snap_range and x_dist <closest_dist[0]:
+                    snap_point[0] = vertex[0]       
+                    closest_dist[0] = x_dist       
+                if y_dist < self.snap_range and y_dist <closest_dist[1]:
+                    snap_point[1] = vertex[1]       
+                    closest_dist[1] = y_dist
         return snap_point
              
     def get_shape_vertices(self,polygon_type,x0,y0,x1,y1):
@@ -427,12 +437,16 @@ class Drawer:
                     closest = i
                     distance = furthest_edges[i]
             #Delete it
-            self.delete_shape(self.get_shape_from_rect(closest))
+            self.delete_shape(None,self.get_shape_from_rect(closest))
 
     #Removes shape from self.all_polygons and removes from canvas        
-    def delete_shape(self,shape):
-        self.all_polygons.remove(shape)
-        self.design.delete(shape.rect)    
+    def delete_shape(self,event,shape=None):
+
+        if len(self.all_polygons)>0:       
+            if event!=None:
+                shape = self.all_polygons[-1] 
+            self.all_polygons.remove(shape)
+            self.design.delete(shape.rect)    
 
     #Returns val if val is in between bounds otherwise returns bound
     def clamp(self,val,lower,upper):
