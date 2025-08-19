@@ -63,7 +63,7 @@ class Drawer:
 
         }
         #How big the canvas will be in the program, has to maintain this ratio of 1:√2
-        self.CANVAS_SIZE = (437, 614)
+        self.canvas_size = (437, 614)
         self.mouse_pos = (0,0)
         self.mouse_down_pos = (0,0)
         #Create the main window
@@ -100,7 +100,7 @@ class Drawer:
         self.design_frame.grid(row=2,column=0,sticky="news")
         
         #Establish the Tkinter canvas for drawing on
-        self.design = Canvas(self.design_frame,width=self.CANVAS_SIZE[0],height=self.CANVAS_SIZE[1],bg="white")
+        self.design = Canvas(self.design_frame,width=self.canvas_size[0],height=self.canvas_size[1],bg="white")
         self.design.grid(row=1,column=0)
         return root
     
@@ -153,7 +153,7 @@ class Drawer:
     #Called when mouse is moved over the canvas
     def mouseDrag(self,event):
         #Get mouse position, make sure it doesn't exceed the bounds of the canvas
-        self.mouse_pos = (self.clamp(event.x,0,self.CANVAS_SIZE[0]),self.clamp(event.y,0,self.CANVAS_SIZE[1]))
+        self.mouse_pos = (self.clamp(event.x,0,self.canvas_size[0]),self.clamp(event.y,0,self.canvas_size[1]))
 
         #If is drawing
         if self.is_drawing == True:
@@ -242,7 +242,7 @@ class Drawer:
         x_intercepts = {}    
         y_intercepts = {}    
         #Scan length of screen at y point
-        for x in range(0,self.CANVAS_SIZE[0]):
+        for x in range(0,self.canvas_size[0]):
             #Find all shapes at point
             point_intercepts = self.design.find_overlapping(x, self.mouse_down_pos[1], x, self.mouse_down_pos[1])
             #See if already found point
@@ -256,7 +256,7 @@ class Drawer:
                     x_intercepts[intercept] = (x,x)
         #Scan height of screen at x point
                     
-        for y in range(0,self.CANVAS_SIZE[1]):
+        for y in range(0,self.canvas_size[1]):
             #Find all shapes at point
             point_intercepts = self.design.find_overlapping(self.mouse_down_pos[0], y, self.mouse_down_pos[0], y)
             #See if already found point
