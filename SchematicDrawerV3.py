@@ -21,6 +21,7 @@ TOOLBAR_LAYOUT = {
     "PRINT":"PRINT.png",
     "SNAPPING":"SNAPPINGDISABLED.png",
     "COLOURPICKER":"COLOURPICKER.png",
+    "FILL":"FILL.png",
     "RECTANGLE":"RECTANGLE.png",
     "ELIPSE":"ELIPSE.png",
     "TRIANGLE":"TRIANGLE.png",
@@ -151,7 +152,7 @@ class Drawer:
         self.mouse_down_pos = self.find_local_point(event.x,event.y)
 
         #Check if i am trying to draw a shape
-        if self.drawing_type != "" and self.drawing_type != "DELETE":
+        if self.drawing_type != "" and self.drawing_type != "DELETE" and self.drawing_type != "FILL":
             self.is_drawing = True
             self.current_vertices = [0,0,0,0,0,0]
             #Create temp shape for design guide
@@ -160,7 +161,10 @@ class Drawer:
         #if i am deleting
         elif self.drawing_type == "DELETE":
 
-            self.click_delete()
+            self.click_delete()        
+        elif self.drawing_type == "FILL":
+
+            self.click_fill()
 
     #Pass rect of shape and returns shape object from self.all_polygons        
     def get_shape_from_rect(self,rect):
@@ -178,7 +182,7 @@ class Drawer:
             self.is_drawing = False
             self.design.itemconfigure(self.current_shape, outline="black",fill=self.current_colour,dash=(), width=1)
             #Create shape info to store
-            new_shape = Shape(self.drawing_type,self.convert_coordinates_format(self.current_vertices),self.current_shape,"None")
+            new_shape = Shape(self.drawing_type,self.convert_coordinates_format(self.current_vertices),self.current_shape,self.current_colour)
             self.all_polygons.append(new_shape)
             pass    
     #Called when mouse is moved over the canvas
@@ -280,13 +284,11 @@ class Drawer:
             case "COLOURPICKER":
                 self.current_colour = colorchooser.askcolor(title="Select Fill Colour")[1]
                 if self.current_colour == "#ffffff":
-                    self.current_colour = None
+                    self.current_colour = ""
                 print(self.current_colour)
             #Enables and disables the snapping of lines
             case "SNAPPING":
-                self.toggle_snapping(None)
-                
-
+                self.toggle_snapping(None)            
 
             #Set drawing type to clicked on shape
             case _:
@@ -324,8 +326,10 @@ class Drawer:
                 for vertex in polygon[2]:
                     tkinter_vertex_list.extend(vertex)
 
+                if polygon[3] == None:
+                    polygon[3] = ""
                 #Draw all the shapes and add them to the all_polygons list
-                new_rect = self.design.create_polygon(*tkinter_vertex_list, outline='black', fill='', dash=())
+                new_rect = self.design.create_polygon(*tkinter_vertex_list, outline='black', fill=polygon[3], dash=())
                 new_shape = Shape(polygon[0],polygon[2],new_rect,polygon[3])
                 self.all_polygons.append(new_shape)
 
@@ -400,15 +404,24 @@ class Drawer:
                     shape_vertices.append(x)
                     shape_vertices.append(y)
         return shape_vertices
-    #Delete shape when clicked on   
-    def click_delete(self):
+        
+    #Shape Selector
+    def shape_select(self):
+        
         #Create dictionary for positions where lines intersect shapes
         x_intercepts = {}    
         y_intercepts = {}    
+        visible_shapes = []
         #Scan length of screen at y point
         for x in range(0,self.canvas_size[0]):
             #Find all shapes at point
             point_intercepts = self.design.find_overlapping(x, self.mouse_down_pos[1], x, self.mouse_down_pos[1])
+            highest_colour_rect = 0
+            for shape in point_intercepts:
+                if self.get_shape_from_rect(shape).colour != "" and shape >= highest_colour_rect:
+                    highest_colour_rect = shape
+
+            point_intercepts = [i for i in point_intercepts if i >= highest_colour_rect]
             #See if already found point
             for intercept in point_intercepts:
                 #Already discovered
@@ -418,8 +431,8 @@ class Drawer:
                 else: 
                     #Just discovered, add to list
                     x_intercepts[intercept] = (x,x)
+
         #Scan height of screen at x point
-                    
         for y in range(0,self.canvas_size[1]):
             #Find all shapes at point
             point_intercepts = self.design.find_overlapping(self.mouse_down_pos[0], y, self.mouse_down_pos[0], y)
@@ -458,8 +471,17 @@ class Drawer:
                 if furthest_edges[i]<distance:
                     closest = i
                     distance = furthest_edges[i]
+
+        return self.get_shape_from_rect(closest)
+   
+    #Delete shape when clicked on   
+    def click_delete(self):
             #Delete it
-            self.delete_shape(None,self.get_shape_from_rect(closest))
+            self.delete_shape(None,self.shape_select())
+
+    def click_fill(self):
+            #Delete it
+            self.shape_select().colour == self.current_colour
 
     #Removes shape from self.all_polygons and removes from canvas        
     def delete_shape(self,event,shape=None):

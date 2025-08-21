@@ -15,8 +15,10 @@ def tkinter_to_PIL(self,shapes,scale):
             #Creates a adjusts the list item to be scaled correctly
             polygon.vertices[index] = (vertex[0]*scale,vertex[1]*scale)
 
+        if polygon.colour == "":
+            polygon.colour = None
         #Draws onto new canvas
-        draw.polygon(polygon.vertices,outline="black")
+        draw.polygon(polygon.vertices,outline="black",fill=polygon.colour)
     #Scales drawing to be desired paper size
     file = file.resize(self.AN_SIZES[self.current_paper_size][0])
 
