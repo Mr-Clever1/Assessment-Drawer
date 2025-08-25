@@ -7,13 +7,12 @@ from tkinter import messagebox
 from tkinter import colorchooser
 import RedrawerComponent 
 import MeasurementComponent 
-import ConfigurationComponent
+import ConfigurationComponentV2 as ConfigurationComponent
 import math
 import json
 #Define program constants
 
 #Defines image names and folder that they're in
-IMAGE_FOLDER_PATH = r"Toolbar_Icons/"
 TOOLBAR_LAYOUT = {
     "CONFIGURE":"SETTINGS.png",
     "SAVE":"SAVE.png",
@@ -53,10 +52,11 @@ class Drawer:
         self.CONFIG_SCALE = 100
         self.all_polygons = []
         self.all_coordinates = []
-        self.snap_range = 5
+        self.snap_range = 10
         self.snapping = False
         self.SNAPPING_IMAGES = ()
         self.current_colour = None
+        self.IMAGE_FOLDER_PATH = r"Toolbar_Icons/"
         #Paper Sizes, sizes in pixles then mm
         self.AN_SIZES = {
             0: [(9933,14043),(841, 1189)],
@@ -110,6 +110,7 @@ class Drawer:
         
         #Establish window
         root = Tk()
+        root.title("Schematic Drawer")
         root.geometry("717x1061")
         root.grid_rowconfigure(2,weight=1)
         root.grid_rowconfigure(3,weight=1)
@@ -133,7 +134,7 @@ class Drawer:
         self.design.pack(expand=True)
 
         #Create on state for image
-        self.SNAPPING_IMAGES = (PhotoImage(file=IMAGE_FOLDER_PATH+"SNAPPINGDISABLED.png"),PhotoImage(file=IMAGE_FOLDER_PATH+"SNAPPINGENABLED.png"))
+        self.SNAPPING_IMAGES = (PhotoImage(file=self.IMAGE_FOLDER_PATH+"SNAPPINGDISABLED.png"),PhotoImage(file=self.IMAGE_FOLDER_PATH+"SNAPPINGENABLED.png"))
         return root
     
     #Establish information for dimension bar 
@@ -163,7 +164,6 @@ class Drawer:
 
             self.click_delete()        
         elif self.drawing_type == "FILL":
-
             self.click_fill()
 
     #Pass rect of shape and returns shape object from self.all_polygons        
@@ -242,8 +242,8 @@ class Drawer:
     def place_buttons(self,to_be_placed:dict,frame:Frame):
         self.all_buttons = {}
         for index,key in enumerate(to_be_placed):
-            to_be_placed[key] = (PhotoImage(file=IMAGE_FOLDER_PATH+to_be_placed[key]))
-            self.all_buttons[key] = (Button(frame,image=to_be_placed[key],command=lambda k=key:self.button_commands(k)))
+            to_be_placed[key] = (PhotoImage(file=self.IMAGE_FOLDER_PATH+to_be_placed[key]))
+            self.all_buttons[key] = Button(frame,image=to_be_placed[key],command=lambda k=key:self.button_commands(k,self.all_buttons[k]))
             self.all_buttons[key].grid(row=0,column=index,sticky="news")
 
     #Converts coordinates from each value being its own item to tuples of coords
@@ -256,15 +256,18 @@ class Drawer:
         return tuple_coords
 
     #Called whenever a button is pressed
-    def button_commands(self,command):
+    def button_commands(self,command,clicked_on):
+        print(clicked_on,)
         match(command):
             #When configure button pressed
             case "CONFIGURE":
-                ConfigurationComponent.create_configure_window(self)
+                if self.configure_window.winfo_exists() == False:
+                    ConfigurationComponent.create_configure_window(self)
                 pass
             case "PRINT":
                 #Open print window
-                if self.configure_window != None and self.configure_window.winfo_exists() == False:
+                print(self.all_buttons["PRINT"])
+                if self.all_buttons["PRINT"] == clicked_on:
                     RedrawerComponent.tkinter_to_PIL(self,self.all_polygons,self.CONFIG_SCALE/self.real_scale)
                 else:
                     #Creates a black line that is roughly 100mm across
@@ -283,7 +286,7 @@ class Drawer:
                 self.save_as_json()
             case "COLOURPICKER":
                 self.current_colour = colorchooser.askcolor(title="Select Fill Colour")[1]
-                if self.current_colour == "#ffffff":
+                if self.current_colour == "#FFFFFF":
                     self.current_colour = ""
                 print(self.current_colour)
             #Enables and disables the snapping of lines
@@ -462,17 +465,19 @@ class Drawer:
                 #Find furthest edge
                 furthest_edges[i] = max(edges)
                 pass
+
+        #Rect of the shape clicked on
+        closest = None
         #If clicked on shape
         if len(furthest_edges)>0:
-            closest = None
             distance = math.inf
             for i in furthest_edges:
                 #Get nearest shape
                 if furthest_edges[i]<distance:
                     closest = i
                     distance = furthest_edges[i]
-
-        return self.get_shape_from_rect(closest)
+        if closest != None:
+            return self.get_shape_from_rect(closest)
    
     #Delete shape when clicked on   
     def click_delete(self):
@@ -480,8 +485,11 @@ class Drawer:
             self.delete_shape(None,self.shape_select())
 
     def click_fill(self):
-            #Delete it
-            self.shape_select().colour == self.current_colour
+            #Update the shape object and canvas
+            shape = self.shape_select()
+            if shape:
+                shape.colour = self.current_colour
+                self.design.itemconfigure(shape.rect,fill=self.current_colour)
 
     #Removes shape from self.all_polygons and removes from canvas        
     def delete_shape(self,event,shape=None):
