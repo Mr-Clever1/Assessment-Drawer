@@ -5,11 +5,12 @@ from tkinter import *
 from tkinter import filedialog
 from tkinter import messagebox
 from tkinter import colorchooser
-import RedrawerComponent 
+import RedrawerComponentV2 as RedrawerComponent 
 import MeasurementComponent 
 import ConfigurationComponentV2 as ConfigurationComponent
 import math
 import json
+import os
 #Define program constants
 
 #Defines image names and folder that they're in
@@ -57,6 +58,7 @@ class Drawer:
         self.SNAPPING_IMAGES = ()
         self.current_colour = None
         self.IMAGE_FOLDER_PATH = r"Toolbar_Icons/"
+        self.colour_preferences = ["#D0C8CC","#B3A8AE"]
         #Paper Sizes, sizes in pixles then mm
         self.AN_SIZES = {
             0: [(9933,14043),(841, 1189)],
@@ -114,19 +116,31 @@ class Drawer:
         root.geometry("717x1061")
         root.grid_rowconfigure(2,weight=1)
         root.grid_rowconfigure(3,weight=1)
+        try:
+            file_name = "Preferences"
+            file_path = os.path.abspath(os.getcwd())+f"\{file_name}"
+
+            with open(file_path,'r') as file:
+                data = json.load(file)
+                self.colour_preferences = data
+        except:
+            pass
+
+
+        root.config(bg=self.colour_preferences[1])
         #Establish toolbar to store all of the tools useable
-        self.toolbar_frame = Frame(root,bg="grey")
+        self.toolbar_frame = Frame(root,bg=self.colour_preferences[1])
         for i in range(len(TOOLBAR_LAYOUT)):
             self.toolbar_frame.grid_columnconfigure(i,weight=1)
         root.grid_columnconfigure(0,weight=1)
         self.toolbar_frame.grid(row=0,column=0,sticky="news")       
         
         #Establish dimension bar to display the dimensions and mouse position
-        self.dimensions_bar_frame = Frame(root,bg="light grey")
+        self.dimensions_bar_frame = Frame(root,bg=self.colour_preferences[0])
         self.dimensions_bar_frame.grid(row=1,column=0,sticky="news")
         
         #Establish design frame where the user will be able to draw on the canvas
-        self.design_frame = Frame(root,bg="light grey",width=self.canvas_size[0],height=self.canvas_size[1])
+        self.design_frame = Frame(root,bg=self.colour_preferences[0],width=self.canvas_size[0],height=self.canvas_size[1])
         self.design_frame.grid(row=2,column=0,sticky="news")
         
         #Establish the Tkinter canvas for drawing on
@@ -142,7 +156,7 @@ class Drawer:
         #Creates variable that will be the text displayed
         self.dimension_val = StringVar()
         #Text widget
-        self.dimensions_label = Label(self.dimensions_bar_frame,textvariable=self.dimension_val,bg="light grey")
+        self.dimensions_label = Label(self.dimensions_bar_frame,textvariable=self.dimension_val,bg=self.colour_preferences[0])
         #Put it in the frame(Uses pack because it's easy and there is only 1 item in this frame)
         self.dimensions_label.pack(side=LEFT)
         self.dimension_val.set(MeasurementComponent.update_dimensions(self))
@@ -243,7 +257,7 @@ class Drawer:
         self.all_buttons = {}
         for index,key in enumerate(to_be_placed):
             to_be_placed[key] = (PhotoImage(file=self.IMAGE_FOLDER_PATH+to_be_placed[key]))
-            self.all_buttons[key] = Button(frame,image=to_be_placed[key],command=lambda k=key:self.button_commands(k,self.all_buttons[k]))
+            self.all_buttons[key] = Button(frame,image=to_be_placed[key],command=lambda k=key:self.button_commands(k,self.all_buttons[k]),bg=self.colour_preferences[1])
             self.all_buttons[key].grid(row=0,column=index,sticky="news")
 
     #Converts coordinates from each value being its own item to tuples of coords
@@ -257,7 +271,6 @@ class Drawer:
 
     #Called whenever a button is pressed
     def button_commands(self,command,clicked_on):
-        print(clicked_on,)
         match(command):
             #When configure button pressed
             case "CONFIGURE":
@@ -286,7 +299,8 @@ class Drawer:
                 self.save_as_json()
             case "COLOURPICKER":
                 self.current_colour = colorchooser.askcolor(title="Select Fill Colour")[1]
-                if self.current_colour == "#FFFFFF":
+                print(self.current_colour)
+                if self.current_colour == "#ffffff":
                     self.current_colour = ""
                 print(self.current_colour)
             #Enables and disables the snapping of lines
@@ -309,7 +323,7 @@ class Drawer:
         #Opens file explorer dialog to save a json file
         path = filedialog.askopenfilename(
             defaultextension=".json",
-            filetypes=[("JSON files", "*.json"), ("All files", "*.*")]
+            filetypes=[("JSON files", "*.json")]
         )
 
         #If there has been a path selected
@@ -321,7 +335,10 @@ class Drawer:
             #Open file
             with open(path,'r') as file:
                 data = json.load(file)
-
+                print(type(data[0][2]) == int)
+                if (data[0][0] in self.all_buttons and type(data[0][1]) == int and type(data[0][2]) == list and len(data[0]) == 4) == False:
+                    messagebox.showerror("Invalid JSON Format", f"Please select a .JSON file created in this program")
+                    return
             #Run through each polygon in the file
             for polygon in data:
                 #Convert from tuple to a flat list

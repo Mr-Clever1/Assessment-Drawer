@@ -1,12 +1,14 @@
 #ConfigurationComponent
 #Paired with SchematicDrawer.py
-#31/07/2025
+#23/08/2025
 #James Burt
+
 #Create secondary window at make it always at the top
 from tkinter import *
 from tkinter import messagebox
 from tkinter import colorchooser
-
+import json
+import os
 drawer = None
 
 def create_configure_window(self):
@@ -14,6 +16,8 @@ def create_configure_window(self):
     global drawer
     drawer = self
     drawer.config_open = True
+    
+    drawer.is_changing_colour = False
     #Creates config window and attributes it to always be the topmost window on the screen
     drawer.configure_window = Toplevel(drawer.root)
     drawer.configure_window.attributes('-topmost', True)
@@ -98,15 +102,30 @@ def entry_edited(val,lower,upper,exception_val):
         drawer.real_scale = size
 
 def colour_changer(section):
-    colour = colorchooser.askcolor(title="Select Fill Colour")[1]
-    if section == "BACKGROUND":
-        drawer.design_frame.config(bg=colour)
-        drawer.dimensions_bar_frame.config(bg=colour)
-        drawer.dimensions_label.config(bg=colour)
-        pass
-    if section == "TOOLBAR":
-        for purpose,button in drawer.all_buttons.items():
-            button.config(bg=colour)
-        drawer.toolbar_frame.config(bg=colour)
-        drawer.root.config(bg=colour)
+    if drawer.is_changing_colour == False:
+        drawer.is_changing_colour = True
+        colour = colorchooser.askcolor(title="Select Fill Colour")[1]
+        if section == "BACKGROUND":
+            drawer.design_frame.config(bg=colour)
+            drawer.dimensions_bar_frame.config(bg=colour)
+            drawer.dimensions_label.config(bg=colour)
+
+            drawer.colour_preferences = [colour,drawer.colour_preferences[1]]
+
+            pass
+        if section == "TOOLBAR":
+            for purpose,button in drawer.all_buttons.items():
+                button.config(bg=colour)
+            drawer.toolbar_frame.config(bg=colour)
+            drawer.root.config(bg=colour)
+            drawer.colour_preferences = [drawer.colour_preferences[0],colour]
+
+
+
+        file_name = "Preferences"
+        file_path = os.path.abspath(os.getcwd())+f"\{file_name}"
+        print(drawer.colour_preferences)
+        with open(file_path,'w') as file:
+            json.dump(drawer.colour_preferences,file,indent=2)
+        drawer.is_changing_colour = False
 
